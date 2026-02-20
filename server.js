@@ -57,7 +57,7 @@ const DEMO_PRODUCTS = [
   // Mejeri
   {
     id: 'mellanmjolk-1l', name: 'Mellanmjölk', subtitle: '3% fetthalt · 1 L',
-    category: 'mejeri', unit: '1 L', image: null,
+    category: 'mejeri', emoji: '🥛', unit: '1 L', image: null,
     prices: {
       ica:      { price: 14.90, inOffer: false },
       maxi:     { price: 13.95, inOffer: false },
@@ -67,7 +67,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'lattmjolk-1l', name: 'Lättmjölk', subtitle: '0.5% fetthalt · 1 L',
-    category: 'mejeri', unit: '1 L', image: null,
+    category: 'mejeri', emoji: '🥛', unit: '1 L', image: null,
     prices: {
       ica:      { price: 13.90, inOffer: false },
       maxi:     { price: 12.95, inOffer: false },
@@ -77,7 +77,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'smor-500g', name: 'Normalsaltat smör', subtitle: '500 g',
-    category: 'mejeri', unit: '500 g', image: null,
+    category: 'mejeri', emoji: '🧈', unit: '500 g', image: null,
     prices: {
       ica:      { price: 44.90, inOffer: false },
       maxi:     { price: 42.95, inOffer: false },
@@ -87,7 +87,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'agg-12', name: 'Ägg M/L', subtitle: '12-pack · frigående höns',
-    category: 'mejeri', unit: '12-pack', image: null,
+    category: 'mejeri', emoji: '🥚', unit: '12-pack', image: null,
     prices: {
       ica:      { price: 59.90, inOffer: false },
       maxi:     { price: 55.95, inOffer: true },
@@ -97,7 +97,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'hushallsost-400g', name: 'Hushållsost', subtitle: '28% fetthalt · 400 g',
-    category: 'mejeri', unit: '400 g', image: null,
+    category: 'mejeri', emoji: '🧀', unit: '400 g', image: null,
     prices: {
       ica:      { price: 54.90, inOffer: false },
       maxi:     { price: 49.95, inOffer: false },
@@ -107,7 +107,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'yoghurt-1kg', name: 'Naturell yoghurt', subtitle: '3% fetthalt · 1 kg',
-    category: 'mejeri', unit: '1 kg', image: null,
+    category: 'mejeri', emoji: '🫙', unit: '1 kg', image: null,
     prices: {
       ica:      { price: 29.90, inOffer: false },
       maxi:     { price: 27.95, inOffer: false },
@@ -117,7 +117,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'filmjolk-1l', name: 'Filmjölk', subtitle: '3% fetthalt · 1 L',
-    category: 'mejeri', unit: '1 L', image: null,
+    category: 'mejeri', emoji: '🥛', unit: '1 L', image: null,
     prices: {
       ica:      { price: 16.90, inOffer: false },
       maxi:     { price: 15.95, inOffer: false },
@@ -128,7 +128,7 @@ const DEMO_PRODUCTS = [
   // Bröd
   {
     id: 'formbrod-700g', name: 'Formbröd', subtitle: 'Vete · 700 g',
-    category: 'brod', unit: '700 g', image: null,
+    category: 'brod', emoji: '🍞', unit: '700 g', image: null,
     prices: {
       ica:      { price: 29.90, inOffer: false },
       willys:   { price: 25.90, inOffer: false },
@@ -137,7 +137,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'knackebrod-500g', name: 'Råg-knäckebröd', subtitle: '500 g',
-    category: 'brod', unit: '500 g', image: null,
+    category: 'brod', emoji: '🥖', unit: '500 g', image: null,
     prices: {
       ica:      { price: 22.90, inOffer: false },
       maxi:     { price: 19.95, inOffer: false },
@@ -147,17 +147,17 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'baguette-2-pack', name: 'Baguette', subtitle: '2-pack · färsk',
-    category: 'brod', unit: '2-pack', image: null,
+    category: 'brod', emoji: '🥖', unit: '2-pack', image: null,
     prices: {
       ica:    { price: 19.90, inOffer: false },
       maxi:   { price: 17.95, inOffer: false },
       willys: { price: 18.90, inOffer: true }
     }
   },
-  // Kött & fisk
+  // Kött
   {
     id: 'kycklingfile-900g', name: 'Kycklingfilé', subtitle: 'Färsk · 900 g',
-    category: 'kott', unit: '900 g', image: null,
+    category: 'kott', emoji: '🍗', unit: '900 g', image: null,
     prices: {
       ica:      { price: 99.90, inOffer: true },
       maxi:     { price: 89.95, inOffer: false },
@@ -167,7 +167,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'notfars-500g', name: 'Nötfärs', subtitle: '12% fett · 500 g',
-    category: 'kott', unit: '500 g', image: null,
+    category: 'kott', emoji: '🥩', unit: '500 g', image: null,
     prices: {
       ica:      { price: 54.90, inOffer: false },
       maxi:     { price: 49.95, inOffer: false },
@@ -176,17 +176,8 @@ const DEMO_PRODUCTS = [
     }
   },
   {
-    id: 'laxfile-400g', name: 'Laxfilé', subtitle: 'Norsk atlantlax · 400 g',
-    category: 'fisk', unit: '400 g', image: null,
-    prices: {
-      ica:    { price: 79.90, inOffer: false },
-      maxi:   { price: 74.95, inOffer: true },
-      willys: { price: 77.90, inOffer: false }
-    }
-  },
-  {
     id: 'skinka-200g', name: 'Kokt skinka', subtitle: 'Skivad · 200 g',
-    category: 'kott', unit: '200 g', image: null,
+    category: 'kott', emoji: '🥓', unit: '200 g', image: null,
     prices: {
       ica:      { price: 29.90, inOffer: false },
       maxi:     { price: 27.95, inOffer: false },
@@ -194,10 +185,20 @@ const DEMO_PRODUCTS = [
       eurocash: { price: 25.00, inOffer: false }
     }
   },
+  // Fisk
+  {
+    id: 'laxfile-400g', name: 'Laxfilé', subtitle: 'Norsk atlantlax · 400 g',
+    category: 'fisk', emoji: '🐟', unit: '400 g', image: null,
+    prices: {
+      ica:    { price: 79.90, inOffer: false },
+      maxi:   { price: 74.95, inOffer: true },
+      willys: { price: 77.90, inOffer: false }
+    }
+  },
   // Frukt & grönt
   {
     id: 'applen-1kg', name: 'Äpplen', subtitle: 'Gala · 1 kg',
-    category: 'frukt', unit: '1 kg', image: null,
+    category: 'frukt', emoji: '🍎', unit: '1 kg', image: null,
     prices: {
       ica:      { price: 29.90, inOffer: false },
       maxi:     { price: 27.95, inOffer: false },
@@ -207,7 +208,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'bananer-1kg', name: 'Bananer', subtitle: '1 kg',
-    category: 'frukt', unit: '1 kg', image: null,
+    category: 'frukt', emoji: '🍌', unit: '1 kg', image: null,
     prices: {
       ica:      { price: 22.90, inOffer: false },
       maxi:     { price: 19.95, inOffer: false },
@@ -217,7 +218,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'tomater-500g', name: 'Tomater', subtitle: '500 g',
-    category: 'frukt', unit: '500 g', image: null,
+    category: 'frukt', emoji: '🍅', unit: '500 g', image: null,
     prices: {
       ica:      { price: 19.90, inOffer: false },
       maxi:     { price: 17.95, inOffer: false },
@@ -227,7 +228,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'gurka-st', name: 'Gurka', subtitle: '1 st',
-    category: 'frukt', unit: '1 st', image: null,
+    category: 'frukt', emoji: '🥒', unit: '1 st', image: null,
     prices: {
       ica:      { price: 14.90, inOffer: false },
       maxi:     { price: 12.95, inOffer: false },
@@ -237,7 +238,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'morotter-1kg', name: 'Morötter', subtitle: '1 kg',
-    category: 'frukt', unit: '1 kg', image: null,
+    category: 'frukt', emoji: '🥕', unit: '1 kg', image: null,
     prices: {
       ica:      { price: 14.90, inOffer: false },
       maxi:     { price: 13.95, inOffer: false },
@@ -248,7 +249,7 @@ const DEMO_PRODUCTS = [
   // Torrvaror
   {
     id: 'pasta-500g', name: 'Pasta', subtitle: 'Penne eller spaghetti · 500 g',
-    category: 'torrvaror', unit: '500 g', image: null,
+    category: 'torrvaror', emoji: '🍝', unit: '500 g', image: null,
     prices: {
       ica:      { price: 14.90, inOffer: false },
       maxi:     { price: 12.95, inOffer: false },
@@ -258,7 +259,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'ris-1kg', name: 'Långkornigt ris', subtitle: '1 kg',
-    category: 'torrvaror', unit: '1 kg', image: null,
+    category: 'torrvaror', emoji: '🍚', unit: '1 kg', image: null,
     prices: {
       ica:      { price: 22.90, inOffer: false },
       maxi:     { price: 19.95, inOffer: false },
@@ -268,7 +269,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'vetemjol-2kg', name: 'Vetemjöl', subtitle: '2 kg',
-    category: 'torrvaror', unit: '2 kg', image: null,
+    category: 'torrvaror', emoji: '🌾', unit: '2 kg', image: null,
     prices: {
       ica:      { price: 27.90, inOffer: false },
       maxi:     { price: 24.95, inOffer: false },
@@ -278,7 +279,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'tomatkross-400g', name: 'Krossade tomater', subtitle: '400 g',
-    category: 'torrvaror', unit: '400 g', image: null,
+    category: 'torrvaror', emoji: '🥫', unit: '400 g', image: null,
     prices: {
       ica:      { price: 10.90, inOffer: false },
       maxi:     { price:  9.95, inOffer: false },
@@ -289,7 +290,7 @@ const DEMO_PRODUCTS = [
   // Dryck
   {
     id: 'kaffe-500g', name: 'Bryggkaffe', subtitle: 'Mellanrost · 500 g',
-    category: 'dryck', unit: '500 g', image: null,
+    category: 'dryck', emoji: '☕', unit: '500 g', image: null,
     prices: {
       ica:      { price: 79.90, inOffer: false },
       maxi:     { price: 74.95, inOffer: false },
@@ -299,7 +300,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'apelsinjuice-1l', name: 'Apelsinjuice', subtitle: 'Med fruktkött · 1 L',
-    category: 'dryck', unit: '1 L', image: null,
+    category: 'dryck', emoji: '🍊', unit: '1 L', image: null,
     prices: {
       ica:      { price: 24.90, inOffer: false },
       maxi:     { price: 22.95, inOffer: false },
@@ -309,7 +310,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'cola-1.5l', name: 'Cola', subtitle: '1,5 L',
-    category: 'dryck', unit: '1,5 L', image: null,
+    category: 'dryck', emoji: '🥤', unit: '1,5 L', image: null,
     prices: {
       ica:      { price: 22.90, inOffer: false },
       maxi:     { price: 19.95, inOffer: false },
@@ -319,7 +320,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'vatten-1.5l', name: 'Mineralvatten', subtitle: 'Naturellt · 1,5 L',
-    category: 'dryck', unit: '1,5 L', image: null,
+    category: 'dryck', emoji: '💧', unit: '1,5 L', image: null,
     prices: {
       ica:      { price: 12.90, inOffer: false },
       maxi:     { price: 10.95, inOffer: false },
@@ -330,7 +331,7 @@ const DEMO_PRODUCTS = [
   // Snacks & godis
   {
     id: 'chips-200g', name: 'Chips', subtitle: 'Naturell · 200 g',
-    category: 'snacks', unit: '200 g', image: null,
+    category: 'snacks', emoji: '🥨', unit: '200 g', image: null,
     prices: {
       ica:      { price: 24.90, inOffer: false },
       maxi:     { price: 22.95, inOffer: false },
@@ -340,7 +341,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'choklad-200g', name: 'Mjölkchoklad', subtitle: '200 g',
-    category: 'snacks', unit: '200 g', image: null,
+    category: 'snacks', emoji: '🍫', unit: '200 g', image: null,
     prices: {
       ica:      { price: 29.90, inOffer: false },
       maxi:     { price: 26.95, inOffer: false },
@@ -351,7 +352,7 @@ const DEMO_PRODUCTS = [
   // Fryst
   {
     id: 'vaniljglass-1l', name: 'Vaniljglass', subtitle: '1 L',
-    category: 'frys', unit: '1 L', image: null,
+    category: 'frys', emoji: '🍦', unit: '1 L', image: null,
     prices: {
       ica:      { price: 39.90, inOffer: false },
       maxi:     { price: 34.95, inOffer: true },
@@ -361,7 +362,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'fryst-spenat-500g', name: 'Fryst hackad spenat', subtitle: '500 g',
-    category: 'frys', unit: '500 g', image: null,
+    category: 'frys', emoji: '🥬', unit: '500 g', image: null,
     prices: {
       ica:      { price: 19.90, inOffer: false },
       willys:   { price: 17.90, inOffer: false },
@@ -371,7 +372,7 @@ const DEMO_PRODUCTS = [
   // Hygien
   {
     id: 'tandkram-75ml', name: 'Tandkräm', subtitle: 'Fluor · 75 ml',
-    category: 'hygien', unit: '75 ml', image: null,
+    category: 'hygien', emoji: '🦷', unit: '75 ml', image: null,
     prices: {
       ica:      { price: 24.90, inOffer: false },
       maxi:     { price: 22.95, inOffer: false },
@@ -381,7 +382,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'schampo-250ml', name: 'Schampo', subtitle: 'Normalt hår · 250 ml',
-    category: 'hygien', unit: '250 ml', image: null,
+    category: 'hygien', emoji: '🧴', unit: '250 ml', image: null,
     prices: {
       ica:      { price: 34.90, inOffer: false },
       maxi:     { price: 29.95, inOffer: true },
@@ -392,7 +393,7 @@ const DEMO_PRODUCTS = [
   // Städ
   {
     id: 'diskmedel-500ml', name: 'Diskmedel', subtitle: 'Citron · 500 ml',
-    category: 'stad', unit: '500 ml', image: null,
+    category: 'stad', emoji: '🫧', unit: '500 ml', image: null,
     prices: {
       ica:      { price: 22.90, inOffer: false },
       maxi:     { price: 19.95, inOffer: false },
@@ -402,7 +403,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'tvattmedel-1.5kg', name: 'Tvättmedel', subtitle: 'Colour · 1,5 kg',
-    category: 'stad', unit: '1,5 kg', image: null,
+    category: 'stad', emoji: '🧺', unit: '1,5 kg', image: null,
     prices: {
       ica:      { price: 79.90, inOffer: false },
       maxi:     { price: 74.95, inOffer: false },

@@ -131,7 +131,13 @@ let lastUpdatedRaw = null;   // keep raw Date for re-format on lang change
 
 function t(key)    { return I18N[currentLang][key]              ?? I18N.sv[key] ?? key; }
 function tCat(cat) { return I18N[currentLang].categories[cat]  ?? cat; }
-function emoji(cat){ return CATEGORY_EMOJI[cat] ?? '🛒'; }
+// For category tabs: pass a string.  For product cards/modal: pass the product object.
+function emoji(catOrProduct) {
+  if (catOrProduct && typeof catOrProduct === 'object') {
+    return catOrProduct.emoji || CATEGORY_EMOJI[catOrProduct.category] || '🛒';
+  }
+  return CATEGORY_EMOJI[catOrProduct] || '🛒';
+}
 
 function formatPrice(p) {
   return p.toFixed(2).replace('.', ':') + ' kr';
@@ -314,7 +320,7 @@ function renderGrid() {
 
 function cardHTML(p) {
   const [bg, accent] = CATEGORY_COLORS[p.category] || ['#f5f5f5', '#888'];
-  const em            = emoji(p.category);
+  const em            = emoji(p);
   const sc            = storeColor(p.bestStore);
   const sn            = storeShort(p.bestStore);
   const savingsHTML   = p.savings > 0
@@ -388,7 +394,7 @@ function openModal(productId) {
 
   modalContent.innerHTML = `
     <div class="modal-product-header">
-      <span class="modal-emoji">${emoji(p.category)}</span>
+      <span class="modal-emoji">${emoji(p)}</span>
       <h2 class="modal-name">${p.name}</h2>
       <p class="modal-subtitle">${p.subtitle || ''} · ${storeCount} ${storeWord}</p>
     </div>
