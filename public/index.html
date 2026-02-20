@@ -20,7 +20,12 @@
         </div>
       </div>
 
-      <div class="header-meta">
+      <div class="header-right">
+        <!-- Language toggle -->
+        <div class="lang-toggle" aria-label="Välj språk">
+          <button class="lang-btn active" data-lang="sv" title="Svenska">🇸🇪 SV</button>
+          <button class="lang-btn"        data-lang="no" title="Norsk">🇳🇴 NO</button>
+        </div>
         <span id="last-updated" class="updated-badge">Uppdaterar…</span>
       </div>
     </div>
@@ -28,7 +33,6 @@
     <!-- Store filter pills -->
     <div class="store-filters" id="store-filters">
       <button class="store-pill active" data-store="alla">Alla butiker</button>
-      <!-- Populated by JS -->
     </div>
   </header>
 
@@ -36,12 +40,7 @@
   <div class="toolbar">
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
-      <input
-        id="search-input"
-        type="search"
-        placeholder="Sök produkt…"
-        autocomplete="off"
-      />
+      <input id="search-input" type="search" placeholder="Sök produkt…" autocomplete="off" />
     </div>
     <select id="sort-select" class="sort-select">
       <option value="savings">Mest besparing</option>
@@ -54,13 +53,11 @@
   <!-- ── Category tabs ─────────────────────────────────────────────────────── -->
   <nav class="category-tabs" id="category-tabs" aria-label="Kategorier">
     <button class="cat-tab active" data-category="alla">Alla</button>
-    <!-- Populated by JS -->
   </nav>
 
   <!-- ── Main grid ─────────────────────────────────────────────────────────── -->
   <main class="grid-wrap">
     <div id="product-grid" class="product-grid">
-      <!-- Skeleton placeholders -->
       <div class="card skeleton"></div>
       <div class="card skeleton"></div>
       <div class="card skeleton"></div>
@@ -71,8 +68,41 @@
     <p id="empty-msg" class="empty-msg hidden">Inga produkter hittades.</p>
   </main>
 
+  <!-- ── Footer ────────────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+
+      <p class="footer-heading" id="footer-tagline">Gillar du Stromstad Deals?</p>
+      <p class="footer-coffee"  id="footer-coffee">Bjud utvecklaren på en kopp kaffe ☕</p>
+
+      <!-- PayPal -->
+      <a id="footer-paypal-btn"
+         href="https://www.paypal.com/donate/?hosted_button_id=RWGE6R7B94M4W"
+         target="_blank" rel="noopener"
+         class="donate-btn paypal-btn">
+        <svg class="paypal-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.14 2.79A.771.771 0 0 1 4.9 2.2h7.519c2.505 0 4.33.636 5.37 1.889.99 1.196 1.278 2.74.855 4.59l-.003.01c-.568 2.518-2.07 4.26-4.466 5.17-.947.36-2.02.541-3.183.541H9.05l-.974 6.938Z" fill="#009CDE"/>
+          <path d="M19.82 7.577c-.543 2.46-2.048 4.192-4.45 5.105-.95.362-2.022.543-3.186.543H9.232L8.257 21.16a.641.641 0 0 1-.633.54H3.017l.286-1.363h3.773l.975-6.938h1.94c1.163 0 2.236-.181 3.183-.541 2.396-.91 3.898-2.652 4.466-5.17l.004-.01c.194-.857.21-1.648.175-2.1Z" fill="#012169"/>
+        </svg>
+        <span id="footer-paypal-text">Donera via PayPal</span>
+      </a>
+
+      <!-- USDT -->
+      <div class="footer-crypto">
+        <span class="crypto-label" id="footer-crypto-label">USDT (TRC-20):</span>
+        <div class="crypto-row">
+          <code class="crypto-addr">THHNLDw1tmhbRBeu8dzwmFwsiHZyDC56RA</code>
+          <button class="copy-btn" id="copy-addr-btn">Kopiera</button>
+        </div>
+      </div>
+
+      <p class="footer-legal">© 2025 Stromstad Deals · Strömstad, Sverige</p>
+    </div>
+  </footer>
+
   <!-- ── Price-comparison modal ────────────────────────────────────────────── -->
-  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div id="modal-overlay" class="modal-overlay hidden"
+       role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal" id="modal">
       <button class="modal-close" id="modal-close" aria-label="Stäng">✕</button>
       <div id="modal-content"></div>

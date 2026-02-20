@@ -177,7 +177,7 @@ const DEMO_PRODUCTS = [
   },
   {
     id: 'laxfile-400g', name: 'Laxfilé', subtitle: 'Norsk atlantlax · 400 g',
-    category: 'kott', unit: '400 g', image: null,
+    category: 'fisk', unit: '400 g', image: null,
     prices: {
       ica:    { price: 79.90, inOffer: false },
       maxi:   { price: 74.95, inOffer: true },
