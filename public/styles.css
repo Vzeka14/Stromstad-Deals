@@ -336,6 +336,15 @@ body {
   width: fit-content;
 }
 
+.card-brand {
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  line-height: 1;
+}
+
 .card-name {
   font-size: .97rem;
   font-weight: 700;
@@ -465,6 +474,15 @@ body {
   margin-bottom: .5rem;
   display: block;
 }
+.modal-brand {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: .2rem;
+}
+
 .modal-name {
   font-size: 1.25rem;
   font-weight: 800;

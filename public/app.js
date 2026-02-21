@@ -404,6 +404,7 @@ function cardHTML(p) {
         <svg width="7" height="7" viewBox="0 0 7 7" fill="${sc}"><circle cx="3.5" cy="3.5" r="3.5"/></svg>
         ${sn}
       </span>
+      ${p.brand ? `<p class="card-brand">${p.brand}</p>` : ''}
       <p class="card-name">${p.name}</p>
       <p class="card-subtitle">${p.subtitle || ''}</p>
       <div class="card-price-row">
@@ -463,6 +464,7 @@ function openModal(productId) {
   modalContent.innerHTML = `
     <div class="modal-product-header">
       <span class="modal-emoji">${emoji(p)}</span>
+      ${p.brand ? `<p class="modal-brand">${p.brand}</p>` : ''}
       <h2 class="modal-name">${p.name}</h2>
       <p class="modal-subtitle">${p.subtitle || ''}${subLabel} · ${cnt} ${word}</p>
     </div>
