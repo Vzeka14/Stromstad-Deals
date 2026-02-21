@@ -21,6 +21,7 @@
   --maxi:     #003087;
   --willys:   #009F3E;
   --eurocash: #E6B000;
+  --coop:     #00A550;
 }
 
 html { scroll-behavior: smooth; }
@@ -140,6 +141,7 @@ body {
 .store-pill[data-store="maxi"].active   { background: var(--maxi);     border-color: var(--maxi); }
 .store-pill[data-store="willys"].active { background: var(--willys);   border-color: var(--willys); }
 .store-pill[data-store="eurocash"].active { background: var(--eurocash); border-color: var(--eurocash); color: #000; }
+.store-pill[data-store="coop"].active    { background: var(--coop);     border-color: var(--coop); }
 
 /* ── Toolbar ──────────────────────────────────────────────────────────────── */
 .toolbar {
@@ -219,6 +221,41 @@ body {
   background: var(--green);
   border-color: var(--green);
   color: #fff;
+}
+
+/* ── Subcategory chips ───────────────────────────────────────────────────── */
+.subcat-chips {
+  display: flex;
+  gap: .35rem;
+  padding: 0 1.2rem .7rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.subcat-chips::-webkit-scrollbar { display: none; }
+
+.subcat-chip {
+  flex-shrink: 0;
+  padding: .3rem .75rem;
+  border-radius: 100px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-sec);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.subcat-chip:hover { background: var(--bg); color: var(--text-pri); }
+.subcat-chip.active {
+  background: var(--text-pri);
+  border-color: var(--text-pri);
+  color: #fff;
+}
+
+@media (max-width: 480px) {
+  .subcat-chips { padding-left: 1rem; padding-right: 1rem; }
 }
 
 /* ── Product grid ────────────────────────────────────────────────────────── */
