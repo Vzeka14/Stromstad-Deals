@@ -338,8 +338,8 @@ body {
 
 .card-brand {
   font-size: .7rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--text-sec);
   text-transform: uppercase;
   letter-spacing: .4px;
   line-height: 1;
@@ -477,7 +477,7 @@ body {
 .modal-brand {
   font-size: .72rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--text-sec);
   text-transform: uppercase;
   letter-spacing: .5px;
   margin-bottom: .2rem;
