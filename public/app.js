@@ -1,10 +1,31 @@
 'use strict';
 
+// ── City config (mirrors server CITIES) ────────────────────────────────────
+
+const CITIES = {
+  stromstad: {
+    id: 'stromstad',
+    sv: 'Strömstad',
+    no: 'Strömstad',
+    emoji: '🛒',
+    stores: ['ica', 'maxi', 'willys', 'eurocash', 'coop'],
+    tagline: { sv: '5 butiker · Västra Sverige', no: '5 butikker · Vest-Sverige' }
+  },
+  goteborg: {
+    id: 'goteborg',
+    sv: 'Göteborg',
+    no: 'Gøteborg',
+    emoji: '🏙️',
+    stores: ['ica-gbg', 'hemkop', 'lidl', 'coop-gbg', 'willys-gbg'],
+    tagline: { sv: '5 butiker · Centrum', no: '5 butikker · Sentrum' }
+  }
+};
+
 // ── Translations ───────────────────────────────────────────────────────────
 
 const I18N = {
   sv: {
-    site_subtitle:  'Jämför matpriser i Strömstad',
+    site_subtitle:  'Jämför matpriser i',
     updating:       'Uppdaterar…',
     updated_at:     'Uppdaterad',
     all_stores:     'Alla butiker',
@@ -23,12 +44,18 @@ const I18N = {
     store_pl:       'butiker',
     empty:          'Inga produkter hittades.',
     all_sub:        'Alla',
-    footer_tagline: 'Gillar du Stromstad Deals?',
+    footer_tagline: 'Gillar du Deals?',
     footer_coffee:  'Bjud utvecklaren på en kopp kaffe ☕',
     footer_paypal:  'Donera via PayPal',
     footer_crypto:  'USDT (TRC-20):',
     copy:           'Kopiera',
     copied:         'Kopierat! ✓',
+    change_city:    'Byt stad',
+    welcome_title:  'Deals',
+    welcome_subtitle: 'Jämför matpriser i din stad',
+    welcome_desc:   'Välj din stad för att se och jämföra aktuella matpriser i de lokala butikerna.',
+    choose_city:    'Välj din stad',
+    select_btn:     'Välj',
     categories: {
       alla:      'Alla',      mejeri:    'Mejeri',
       brod:      'Bröd & bageri',  kott:      'Kött',
@@ -39,7 +66,7 @@ const I18N = {
     }
   },
   no: {
-    site_subtitle:  'Sammenlign matpriser i Strömstad',
+    site_subtitle:  'Sammenlign matpriser i',
     updating:       'Oppdaterer…',
     updated_at:     'Oppdatert',
     all_stores:     'Alle butikker',
@@ -58,12 +85,18 @@ const I18N = {
     store_pl:       'butikker',
     empty:          'Ingen produkter funnet.',
     all_sub:        'Alle',
-    footer_tagline: 'Liker du Stromstad Deals?',
+    footer_tagline: 'Liker du Deals?',
     footer_coffee:  'Spandér utvikleren en kopp kaffe ☕',
     footer_paypal:  'Doner via PayPal',
     footer_crypto:  'USDT (TRC-20):',
     copy:           'Kopier',
     copied:         'Kopiert! ✓',
+    change_city:    'Bytt by',
+    welcome_title:  'Deals',
+    welcome_subtitle: 'Sammenlign matpriser i din by',
+    welcome_desc:   'Velg din by for å se og sammenligne aktuelle matpriser i de lokale butikkene.',
+    choose_city:    'Velg din by',
+    select_btn:     'Velg',
     categories: {
       alla:      'Alle',      mejeri:    'Meieri',
       brod:      'Brød & bakeri',   kott:      'Kjøtt',
@@ -76,7 +109,6 @@ const I18N = {
 };
 
 // ── Subcategory config ─────────────────────────────────────────────────────
-// Each entry: { id, sv, no }
 
 const SUBCATEGORIES = {
   mejeri: [
@@ -164,6 +196,7 @@ let searchQuery      = '';
 let sortMode         = 'savings';
 let currentLang      = 'sv';
 let lastUpdatedRaw   = null;
+let currentCity      = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -189,6 +222,9 @@ function storeShort(id) { return stores[id]?.shortName || id;     }
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
 
+const welcomePage   = document.getElementById('welcome-page');
+const appPage       = document.getElementById('app-page');
+const cityGrid      = document.getElementById('city-grid');
 const grid          = document.getElementById('product-grid');
 const emptyMsg      = document.getElementById('empty-msg');
 const storeFiltWrap = document.getElementById('store-filters');
@@ -199,32 +235,126 @@ const lastUpdatedEl = document.getElementById('last-updated');
 const modalOverlay  = document.getElementById('modal-overlay');
 const modalClose    = document.getElementById('modal-close');
 const modalContent  = document.getElementById('modal-content');
+const appCityName   = document.getElementById('app-city-name');
+const changeCityBtn = document.getElementById('change-city-btn');
+
+// ── Welcome page ───────────────────────────────────────────────────────────
+
+function renderWelcome() {
+  // Update i18n texts on welcome
+  const el = id => document.getElementById(id);
+  if (el('w-title'))        el('w-title').textContent        = t('welcome_title');
+  if (el('w-subtitle'))     el('w-subtitle').textContent     = t('welcome_subtitle');
+  if (el('w-desc'))         el('w-desc').textContent         = t('welcome_desc');
+  if (el('w-footer-tagline')) el('w-footer-tagline').textContent = t('footer_tagline');
+  if (el('w-footer-coffee'))  el('w-footer-coffee').textContent  = t('footer_coffee');
+  if (el('w-paypal-text'))    el('w-paypal-text').textContent    = t('footer_paypal');
+  if (el('w-crypto-label'))   el('w-crypto-label').textContent   = t('footer_crypto');
+  const wCopyBtn = el('w-copy-addr-btn');
+  if (wCopyBtn && wCopyBtn.dataset.state !== 'copied') wCopyBtn.textContent = t('copy');
+
+  // Render city cards
+  cityGrid.innerHTML = Object.values(CITIES).map(city => {
+    const cityName = currentLang === 'no' ? city.no : city.sv;
+    const tagline  = currentLang === 'no' ? city.tagline.no : city.tagline.sv;
+    return `
+    <div class="city-card" data-city="${city.id}">
+      <div class="city-card-emoji">${city.emoji}</div>
+      <div class="city-card-name">${cityName}</div>
+      <div class="city-card-tagline">${tagline}</div>
+      <button class="city-select-btn" data-city="${city.id}">${t('select_btn')}</button>
+    </div>`;
+  }).join('');
+
+  cityGrid.querySelectorAll('[data-city]').forEach(el => {
+    el.addEventListener('click', () => selectCity(el.dataset.city));
+  });
+
+  // Welcome page lang buttons
+  welcomePage.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === currentLang);
+    btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+  });
+
+  // Welcome copy button
+  if (wCopyBtn) {
+    wCopyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText('THHNLDw1tmhbRBeu8dzwmFwsiHZyDC56RA').then(() => {
+        wCopyBtn.dataset.state = 'copied';
+        wCopyBtn.textContent   = t('copied');
+        setTimeout(() => {
+          wCopyBtn.dataset.state = '';
+          wCopyBtn.textContent   = t('copy');
+        }, 2000);
+      });
+    });
+  }
+}
+
+function showWelcome() {
+  welcomePage.classList.remove('hidden');
+  appPage.classList.add('hidden');
+  renderWelcome();
+}
+
+function showApp() {
+  welcomePage.classList.add('hidden');
+  appPage.classList.remove('hidden');
+}
+
+function selectCity(cityId) {
+  if (!CITIES[cityId]) return;
+  currentCity = cityId;
+  localStorage.setItem('selectedCity', cityId);
+
+  const cityName = currentLang === 'no' ? CITIES[cityId].no : CITIES[cityId].sv;
+  if (appCityName) appCityName.textContent = `${t('site_subtitle')} ${cityName}`;
+
+  // Reset filters when city changes
+  activeStore      = 'alla';
+  activeCategory   = 'alla';
+  activeSubcategory = null;
+  searchQuery      = '';
+
+  showApp();
+
+  // Rebuild store filters for new city
+  storeFiltWrap.innerHTML = `<button class="store-pill active" data-store="alla">${t('all_stores')}</button>`;
+  storeFiltWrap.querySelector('[data-store="alla"]')
+    .addEventListener('click', () => setActiveStore('alla'));
+
+  loadStores().then(() => loadProducts());
+  updateStaticText();
+}
 
 // ── i18n: update static DOM ────────────────────────────────────────────────
 
 function updateStaticText() {
-  const sub = document.querySelector('.logo-sub');
-  if (sub) sub.textContent = t('site_subtitle');
+  if (currentCity) {
+    const cityName = currentLang === 'no' ? CITIES[currentCity].no : CITIES[currentCity].sv;
+    if (appCityName) appCityName.textContent = `${t('site_subtitle')} ${cityName}`;
+  }
 
-  searchInput.placeholder = t('search_ph');
+  if (searchInput) searchInput.placeholder = t('search_ph');
 
-  const opts = sortSelect.options;
+  const opts = sortSelect ? sortSelect.options : [];
   if (opts[0]) opts[0].text = t('sort_savings');
   if (opts[1]) opts[1].text = t('sort_asc');
   if (opts[2]) opts[2].text = t('sort_desc');
   if (opts[3]) opts[3].text = t('sort_name');
 
-  const allStorePill = storeFiltWrap.querySelector('[data-store="alla"]');
+  const allStorePill = storeFiltWrap ? storeFiltWrap.querySelector('[data-store="alla"]') : null;
   if (allStorePill) allStorePill.textContent = t('all_stores');
 
-  const allCatTab = catTabsWrap.querySelector('[data-category="alla"]');
+  const allCatTab = catTabsWrap ? catTabsWrap.querySelector('[data-category="alla"]') : null;
   if (allCatTab) allCatTab.textContent = tCat('alla');
 
-  catTabsWrap.querySelectorAll('.cat-tab:not([data-category="alla"])').forEach(btn => {
-    btn.innerHTML = `${emoji(btn.dataset.category)} ${tCat(btn.dataset.category)}`;
-  });
+  if (catTabsWrap) {
+    catTabsWrap.querySelectorAll('.cat-tab:not([data-category="alla"])').forEach(btn => {
+      btn.innerHTML = `${emoji(btn.dataset.category)} ${tCat(btn.dataset.category)}`;
+    });
+  }
 
-  // update subcategory chips labels in-place
   const subWrap = document.getElementById('subcategory-chips');
   if (subWrap && activeCategory !== 'alla') {
     subWrap.querySelectorAll('.subcat-chip').forEach(chip => {
@@ -233,16 +363,16 @@ function updateStaticText() {
     });
   }
 
-  emptyMsg.textContent = t('empty');
+  if (emptyMsg) emptyMsg.textContent = t('empty');
 
-  if (lastUpdatedRaw) {
+  if (lastUpdatedRaw && lastUpdatedEl) {
     lastUpdatedEl.textContent =
       `${t('updated_at')} ${lastUpdatedRaw.toLocaleTimeString(
         currentLang === 'no' ? 'nb-NO' : 'sv-SE', { hour:'2-digit', minute:'2-digit' }
       )}`;
   }
 
-  // footer
+  // App page footer
   const el = id => document.getElementById(id);
   if (el('footer-tagline'))    el('footer-tagline').textContent    = t('footer_tagline');
   if (el('footer-coffee'))     el('footer-coffee').textContent     = t('footer_coffee');
@@ -251,28 +381,40 @@ function updateStaticText() {
   const copyBtn = el('copy-addr-btn');
   if (copyBtn && copyBtn.dataset.state !== 'copied') copyBtn.textContent = t('copy');
 
-  document.querySelectorAll('.lang-btn').forEach(btn => {
+  // Change-city button text
+  const changeCityText = document.getElementById('change-city-text');
+  if (changeCityText) changeCityText.textContent = t('change_city');
+
+  // App page lang buttons
+  appPage.querySelectorAll('.lang-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.lang === currentLang);
   });
+
+  // Welcome page (if visible, re-render)
+  if (!welcomePage.classList.contains('hidden')) {
+    renderWelcome();
+  }
 }
 
 function setLanguage(lang) {
   currentLang = lang;
   document.documentElement.lang = lang === 'no' ? 'no' : 'sv';
   updateStaticText();
-  renderGrid();
+  if (!appPage.classList.contains('hidden')) renderGrid();
 }
 
 // ── Data loading ───────────────────────────────────────────────────────────
 
 async function loadStores() {
-  const res = await fetch('/api/stores');
+  const params = currentCity ? `?city=${currentCity}` : '';
+  const res = await fetch(`/api/stores${params}`);
   stores = await res.json();
   buildStoreFilters();
 }
 
 async function loadProducts() {
   const params = new URLSearchParams();
+  if (currentCity)            params.set('city', currentCity);
   if (activeCategory !== 'alla') params.set('category', activeCategory);
   if (activeSubcategory)          params.set('subcategory', activeSubcategory);
   if (searchQuery)                params.set('q', searchQuery);
@@ -284,7 +426,7 @@ async function loadProducts() {
   allProducts = sortProducts(data.products);
   renderGrid();
 
-  if (data.lastUpdated) {
+  if (data.lastUpdated && lastUpdatedEl) {
     lastUpdatedRaw = new Date(data.lastUpdated);
     lastUpdatedEl.textContent =
       `${t('updated_at')} ${lastUpdatedRaw.toLocaleTimeString(
@@ -306,6 +448,9 @@ function sortProducts(list) {
 // ── Navigation builders ────────────────────────────────────────────────────
 
 function buildStoreFilters() {
+  // Remove any previously added store pills (keep "alla" pill)
+  storeFiltWrap.querySelectorAll('.store-pill:not([data-store="alla"])').forEach(el => el.remove());
+
   Object.values(stores).forEach(s => {
     const btn = document.createElement('button');
     btn.className = 'store-pill';
@@ -334,7 +479,6 @@ function buildCategoryTabs(products) {
 }
 
 function buildSubcategoryChips(category) {
-  // Remove previous chips row
   const old = document.getElementById('subcategory-chips');
   if (old) old.remove();
 
@@ -346,7 +490,6 @@ function buildSubcategoryChips(category) {
   wrap.id        = 'subcategory-chips';
   wrap.className = 'subcat-chips';
 
-  // "Alla" chip
   const allChip = document.createElement('button');
   allChip.className        = `subcat-chip${!activeSubcategory ? ' active' : ''}`;
   allChip.dataset.subcat   = '';
@@ -363,7 +506,6 @@ function buildSubcategoryChips(category) {
     wrap.appendChild(chip);
   });
 
-  // Insert between category tabs and toolbar
   catTabsWrap.insertAdjacentElement('afterend', wrap);
 }
 
@@ -458,7 +600,6 @@ function openModal(productId) {
   const word = cnt === 1 ? t('store_sg') : t('store_pl');
   const best = stores[p.bestStore]?.name || p.bestStore;
 
-  // show subcategory label if applicable
   const subLabel = p.subcategory ? ` · ${tSub(p.category, p.subcategory)}` : '';
 
   modalContent.innerHTML = `
@@ -553,10 +694,19 @@ grid.addEventListener('keydown', e => {
   }
 });
 
-document.querySelectorAll('.lang-btn').forEach(btn => {
+// App page lang buttons
+appPage.querySelectorAll('.lang-btn').forEach(btn => {
   btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
 });
 
+// Change city button
+if (changeCityBtn) {
+  changeCityBtn.addEventListener('click', () => {
+    showWelcome();
+  });
+}
+
+// App footer copy button
 const copyBtn = document.getElementById('copy-addr-btn');
 if (copyBtn) {
   copyBtn.addEventListener('click', () => {
@@ -574,7 +724,18 @@ if (copyBtn) {
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 
 (async () => {
-  await loadStores();
-  await loadProducts();
-  updateStaticText();
+  const savedCity = localStorage.getItem('selectedCity');
+  if (savedCity && CITIES[savedCity]) {
+    // Restore city directly
+    currentCity = savedCity;
+    const cityName = currentLang === 'no' ? CITIES[savedCity].no : CITIES[savedCity].sv;
+    if (appCityName) appCityName.textContent = `${t('site_subtitle')} ${cityName}`;
+    showApp();
+    await loadStores();
+    await loadProducts();
+    updateStaticText();
+  } else {
+    // Show welcome page
+    showWelcome();
+  }
 })();

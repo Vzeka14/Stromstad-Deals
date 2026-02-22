@@ -14,6 +14,7 @@ app.use(express.json());
 // ─── Store metadata ───────────────────────────────────────────────────────────
 
 const STORES = {
+  // Strömstad stores
   ica: {
     id: 'ica',
     name: 'ICA Kvantum',
@@ -54,8 +55,73 @@ const STORES = {
     color: '#00A550',
     textColor: '#fff',
     url: 'https://www.coop.se/handla/'
+  },
+  // Göteborg stores
+  'ica-gbg': {
+    id: 'ica-gbg',
+    name: 'ICA Supermarket Nordstan',
+    shortName: 'ICA',
+    color: '#E2001A',
+    textColor: '#fff',
+    url: 'https://www.ica.se/butiker/supermarket/goteborg/ica-supermarket-nordstan-1177009/'
+  },
+  hemkop: {
+    id: 'hemkop',
+    name: 'Hemköp Vasagatan',
+    shortName: 'Hemköp',
+    color: '#CC0000',
+    textColor: '#fff',
+    url: 'https://www.hemkop.se/butik/4504'
+  },
+  lidl: {
+    id: 'lidl',
+    name: 'Lidl Kungsgatan',
+    shortName: 'Lidl',
+    color: '#003DA5',
+    textColor: '#fff',
+    url: 'https://www.lidl.se/s/sv-SE/butiker/goeteborg/kungsgatan-16/'
+  },
+  'coop-gbg': {
+    id: 'coop-gbg',
+    name: 'Coop Avenyn',
+    shortName: 'Coop',
+    color: '#00A550',
+    textColor: '#fff',
+    url: 'https://www.coop.se/butiker-erbjudanden/coop/coop-avenyn/'
+  },
+  'willys-gbg': {
+    id: 'willys-gbg',
+    name: 'Willys Hvitfeldtsplatsen',
+    shortName: 'Willys',
+    color: '#009F3E',
+    textColor: '#fff',
+    url: 'https://www.willys.se/butik/goteborg/willys-hvitfeldtsplatsen-2247'
   }
 };
+
+// ─── City config ──────────────────────────────────────────────────────────────
+
+const CITIES = {
+  stromstad: {
+    id: 'stromstad',
+    sv: 'Strömstad',
+    no: 'Strömstad',
+    emoji: '🛒',
+    stores: ['ica', 'maxi', 'willys', 'eurocash', 'coop'],
+    tagline: { sv: '5 butiker · Västra Sverige', no: '5 butikker · Vest-Sverige' }
+  },
+  goteborg: {
+    id: 'goteborg',
+    sv: 'Göteborg',
+    no: 'Gøteborg',
+    emoji: '🏙️',
+    stores: ['ica-gbg', 'hemkop', 'lidl', 'coop-gbg', 'willys-gbg'],
+    tagline: { sv: '5 butiker · Centrum', no: '5 butikker · Sentrum' }
+  }
+};
+
+// Price multipliers for Göteborg vs Strömstad ICA as base
+const GBG_MULT = { 'ica-gbg': 1.04, 'hemkop': 1.06, 'coop-gbg': 1.02, 'willys-gbg': 0.95, 'lidl': 0.88 };
 
 // ─── Demo / fallback product data ────────────────────────────────────────────
 // Used when live scraping returns no results.
@@ -199,6 +265,24 @@ const DEMO_PRODUCTS = [
   { id:'hushallspapper',  name:'Hushållspapper',      brand:'Lambi',       subtitle:'4-pack',               category:'stad', subcategory:'papper', emoji:'🧻', unit:'4-pack',  image:null, prices:{ ica:{price:34.90,inOffer:false}, coop:{price:31.95,inOffer:false}, maxi:{price:29.95,inOffer:false}, willys:{price:32.90,inOffer:false}, eurocash:{price:28.00,inOffer:false} } },
   { id:'toalettpapper',   name:'Toalettpapper',       brand:'Lambi',       subtitle:'8-pack',               category:'stad', subcategory:'papper', emoji:'🧻', unit:'8-pack',  image:null, prices:{ ica:{price:49.90,inOffer:false}, coop:{price:46.95,inOffer:false}, maxi:{price:44.95,inOffer:false}, willys:{price:47.90,inOffer:false}, eurocash:{price:42.00,inOffer:false} } }
 ];
+
+// ─── Göteborg product generator ───────────────────────────────────────────────
+
+function generateGoteborgProducts() {
+  return DEMO_PRODUCTS.map(p => {
+    const gbgPrices = {};
+    // Use ICA base price for multipliers; fall back to first available store price
+    const basePrice = p.prices.ica ? p.prices.ica.price
+      : Object.values(p.prices)[0].price;
+
+    for (const [storeId, mult] of Object.entries(GBG_MULT)) {
+      const raw = Math.round(basePrice * mult * 20) / 20; // round to .05
+      gbgPrices[storeId] = { price: raw, inOffer: false };
+    }
+
+    return { ...p, prices: gbgPrices };
+  });
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -416,7 +500,12 @@ async function scrapeCoopSE() {
 
 const CACHE_TTL = 3 * 60 * 60 * 1000; // 3 hours
 
-let cache = { products: null, lastUpdated: null, isLive: false };
+let cache = {
+  stromstad: null,
+  goteborg:  null,
+  lastUpdated: null,
+  isLive: false
+};
 
 async function fetchAllProducts() {
   console.log('\n── Hämtar produktdata ──────────────────────────────');
@@ -433,25 +522,24 @@ async function fetchAllProducts() {
 
   // TODO: When live data is available, merge it with DEMO_PRODUCTS using
   // fuzzy name matching to add real prices alongside demo prices.
-  const products = DEMO_PRODUCTS;
-
-  cache.products    = enrichProducts(products);
+  cache.stromstad  = enrichProducts(DEMO_PRODUCTS);
+  cache.goteborg   = enrichProducts(generateGoteborgProducts());
   cache.lastUpdated = new Date();
   cache.isLive      = isLive;
 
-  console.log(`── ${cache.products.length} produkter laddade (${isLive ? 'live' : 'demo'})\n`);
-  return cache.products;
+  console.log(`── Strömstad: ${cache.stromstad.length} produkter, Göteborg: ${cache.goteborg.length} produkter (${isLive ? 'live' : 'demo'})\n`);
 }
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 
 app.get('/api/products', async (req, res) => {
   try {
-    if (!cache.products || Date.now() - cache.lastUpdated > CACHE_TTL) {
+    if (!cache.stromstad || Date.now() - cache.lastUpdated > CACHE_TTL) {
       await fetchAllProducts();
     }
 
-    let products = cache.products;
+    const cityId = req.query.city && CITIES[req.query.city] ? req.query.city : 'stromstad';
+    let products = cache[cityId];
 
     if (req.query.category && req.query.category !== 'alla') {
       products = products.filter(p => p.category === req.query.category);
@@ -476,19 +564,31 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-app.get('/api/stores', (_req, res) => res.json(STORES));
+app.get('/api/stores', (req, res) => {
+  const cityId = req.query.city && CITIES[req.query.city] ? req.query.city : null;
+  if (cityId) {
+    const cityStoreIds = CITIES[cityId].stores;
+    const cityStores = {};
+    cityStoreIds.forEach(id => { if (STORES[id]) cityStores[id] = STORES[id]; });
+    return res.json(cityStores);
+  }
+  res.json(STORES);
+});
+
+app.get('/api/cities', (_req, res) => res.json(CITIES));
 
 app.get('/api/status', (_req, res) => res.json({
-  lastUpdated:   cache.lastUpdated,
-  productCount:  cache.products?.length || 0,
-  isLive:        cache.isLive,
-  stores:        Object.keys(STORES)
+  lastUpdated:       cache.lastUpdated,
+  stromstadCount:    cache.stromstad?.length || 0,
+  goteborgCount:     cache.goteborg?.length  || 0,
+  isLive:            cache.isLive,
+  stores:            Object.keys(STORES)
 }));
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 fetchAllProducts().finally(() => {
   app.listen(PORT, () => {
-    console.log(`Stromstad Deals → http://localhost:${PORT}`);
+    console.log(`Deals → http://localhost:${PORT}`);
   });
 });
