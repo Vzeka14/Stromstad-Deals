@@ -50,6 +50,7 @@ const I18N = {
     footer_crypto:  'USDT (TRC-20):',
     copy:           'Kopiera',
     copied:         'Kopierat! ✓',
+    ord_price:      'Ord.pris',
     change_city:    'Byt stad',
     welcome_title:  'Deals',
     welcome_subtitle: 'Jämför matpriser i din stad',
@@ -91,6 +92,7 @@ const I18N = {
     footer_crypto:  'USDT (TRC-20):',
     copy:           'Kopier',
     copied:         'Kopiert! ✓',
+    ord_price:      'Ord.pris',
     change_city:    'Bytt by',
     welcome_title:  'Deals',
     welcome_subtitle: 'Sammenlign matpriser i din by',
@@ -592,6 +594,7 @@ function openModal(productId) {
           <div class="price-row-amount" style="color:${color}">${formatPrice(info.price)}</div>
           ${isBest       ? `<div class="best-badge">${t('best_price')}</div>` : ''}
           ${info.inOffer ? `<div class="price-row-offer">${t('offer')}</div>` : ''}
+          ${info.ordPrice ? `<div class="price-row-ord">${t('ord_price')} ${formatPrice(info.ordPrice)}</div>` : ''}
         </div>
       </a>`;
     }).join('');

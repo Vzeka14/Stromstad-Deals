@@ -1,9 +1,10 @@
 'use strict';
 
-const express = require('express');
-const axios   = require('axios');
-const cheerio = require('cheerio');
-const path    = require('path');
+const express    = require('express');
+const axios      = require('axios');
+const cheerio    = require('cheerio');
+const puppeteer  = require('puppeteer');
+const path       = require('path');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -292,10 +293,153 @@ function enrichProducts(products) {
     const sorted  = [...entries].sort((a, b) => a[1].price - b[1].price);
     const bestStore = sorted[0][0];
     const bestPrice = sorted[0][1].price;
-    const worstPrice = sorted[sorted.length - 1][1].price;
-    const savings   = parseFloat((worstPrice - bestPrice).toFixed(2));
+    // For single-store offers: savings = ordPrice − offerPrice
+    // For multi-store: savings = highest − lowest
+    const ordPrice   = sorted[0][1].ordPrice || null;
+    const worstPrice = ordPrice || sorted[sorted.length - 1][1].price;
+    const savings    = parseFloat((worstPrice - bestPrice).toFixed(2));
     return { ...p, bestStore, bestPrice, savings };
   }).sort((a, b) => b.savings - a.savings);
+}
+
+// ─── Category / emoji inference ───────────────────────────────────────────────
+
+const CAT_KEYWORDS = {
+  mejeri:    ['mjölk','filmjölk','grädde','smör','ost','mozzarella','parmesan','brie','cheddar','halloumi','ricotta','kvarg','yoghurt','ägg','crème fraiche','créme','gräddfil'],
+  brod:      ['bröd','knäckebröd','franska','baguette','toast','bulle','croissant','limpa'],
+  kott:      ['kyckling','fläsk','nöt','bacon','korv','skinka','köttfärs','biff','kotlett','steak','falukorv','prinskorv','salami','lamm','fransyska'],
+  fisk:      ['lax','torsk','fisk','räk','skaldjur','tonfisk','makrill','strömming','sill','hummer','kräft','gravlax','sejfilé'],
+  frukt:     ['äpple','banan','apelsin','citron','druvor','jordgubb','tomat','gurka','moröt','potatis','lök','broccoli','paprika','avokado','mango','päron','plommon','blåbär','hallon','salladsgurka','sallad','spenat','blomkål'],
+  torrvaror: ['pasta','ris','mjöl','havregryn','flingor','bönor','kikärtor','olja','ketchup','soja','tomatpuré','tomatkross','konserv','linser','majonnäs','dressing','cracker'],
+  dryck:     ['kaffe','te','juice','läsk','vatten','energidryck','smoothie','cola','cider','havredryck','sojadryck','mandeldryck'],
+  snacks:    ['chips','popcorn','nötter','choklad','godis','kex','kakor','kola','lakrits','digestive','riskaka','müslibar'],
+  frys:      ['fryst','glass','pizza','pommes','fiskpinnar','ärtor','spenatfryst','fryst grönt'],
+  hygien:    ['tandkräm','tandborste','schampo','tvål','deo','deodorant','balsam','duschgel','rakgel','blöja','menskopp'],
+  stad:      ['diskmedel','tvättmedel','hushållspapper','toalettpapper','soppåsar','rengöring','avfettning']
+};
+
+const EMOJI_MAP = [
+  [['mjölk','filmjölk'],          '🥛'],
+  [['ost','mozzarella','parmesan','brie','cheddar','halloumi'], '🧀'],
+  [['smör'],                       '🧈'],
+  [['ägg'],                        '🥚'],
+  [['yoghurt','kvarg','grädde','créme','gräddfil'], '🫙'],
+  [['bröd','franska','limpa'],     '🍞'],
+  [['baguette'],                   '🥖'],
+  [['kyckling'],                   '🍗'],
+  [['bacon','fläsk'],              '🥓'],
+  [['köttfärs','biff','fransyska'],'🥩'],
+  [['korv','falukorv','prinskorv'],'🌭'],
+  [['lax','torsk','fisk','sej'],   '🐟'],
+  [['räk','skaldjur','hummer'],    '🍤'],
+  [['äpple'],                      '🍎'],
+  [['banan'],                      '🍌'],
+  [['apelsin'],                    '🍊'],
+  [['citron'],                     '🍋'],
+  [['druvor'],                     '🍇'],
+  [['jordgubb'],                   '🍓'],
+  [['tomat'],                      '🍅'],
+  [['gurka'],                      '🥒'],
+  [['moröt'],                      '🥕'],
+  [['broccoli','blomkål'],         '🥦'],
+  [['paprika'],                    '🫑'],
+  [['lök'],                        '🧅'],
+  [['potatis'],                    '🥔'],
+  [['avokado'],                    '🥑'],
+  [['pasta'],                      '🍝'],
+  [['ris'],                        '🍚'],
+  [['kaffe'],                      '☕'],
+  [['te'],                         '🍵'],
+  [['juice'],                      '🍊'],
+  [['cola','läsk'],                '🥤'],
+  [['vatten'],                     '💧'],
+  [['chips'],                      '🥨'],
+  [['choklad'],                    '🍫'],
+  [['godis','lakrits'],            '🍬'],
+  [['glass'],                      '🍦'],
+  [['pizza'],                      '🍕'],
+  [['pommes'],                     '🍟'],
+  [['tandkräm','tandborste'],      '🦷'],
+  [['schampo','balsam','duschgel'],'🧴'],
+  [['tvättmedel','diskmedel'],     '🧺'],
+];
+
+function inferCategory(name, subtitle = '') {
+  const text = (name + ' ' + subtitle).toLowerCase();
+  for (const [cat, words] of Object.entries(CAT_KEYWORDS)) {
+    if (words.some(w => text.includes(w))) return cat;
+  }
+  return 'torrvaror';
+}
+
+function inferEmoji(name) {
+  const text = name.toLowerCase();
+  for (const [words, em] of EMOJI_MAP) {
+    if (words.some(w => text.includes(w))) return em;
+  }
+  return '🛒';
+}
+
+function extractUnit(subtitle) {
+  const m = subtitle.match(/(\d+(?:[,.]\d+)?\s*(?:g|kg|ml|l|cl|dl|st|pack|förp))/i);
+  return m ? m[1] : (subtitle.split(/[·,]/).pop().trim() || '');
+}
+
+function generateId(storeId, name) {
+  return storeId + '-' + name.toLowerCase()
+    .replace(/[åä]/g, 'a').replace(/ö/g, 'o')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    .substring(0, 40);
+}
+
+// Convert a raw scraped item into a full product object
+function parseScrapedProduct(storeId, raw) {
+  const name     = raw.name.trim();
+  const subtitle = (raw.subtitle || '').trim();
+  const cat      = inferCategory(name, subtitle);
+  return {
+    id:          generateId(storeId, name),
+    name,
+    brand:       raw.brand || null,
+    subtitle,
+    category:    cat,
+    subcategory: cat,
+    emoji:       inferEmoji(name),
+    unit:        extractUnit(subtitle) || '1 st',
+    image:       raw.image || null,
+    prices: {
+      [storeId]: { price: raw.price, inOffer: true, ordPrice: raw.ordPrice || null }
+    }
+  };
+}
+
+// ─── Puppeteer browser ────────────────────────────────────────────────────────
+
+let _browser = null;
+
+async function getBrowser() {
+  if (!_browser || !_browser.connected) {
+    _browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    });
+  }
+  return _browser;
+}
+
+async function withPage(fn) {
+  const browser = await getBrowser();
+  const page    = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'sv-SE,sv;q=0.9' });
+  // Block fonts/stylesheets for speed; keep images (for src attributes)
+  await page.setRequestInterception(true);
+  page.on('request', req => {
+    if (['stylesheet','font','media'].includes(req.resourceType())) req.abort();
+    else req.continue();
+  });
+  try   { return await fn(page); }
+  finally { await page.close().catch(() => {}); }
 }
 
 // ─── Scraping ─────────────────────────────────────────────────────────────────
@@ -306,194 +450,337 @@ const SCRAPE_HEADERS = {
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 };
 
-// Attempt to scrape live offer data from ICA Kvantum Stromstad
-async function scrapeICA() {
+// ── ICA (Puppeteer — reads window.__INITIAL_DATA__.offers.weeklyOffers) ────────
+async function scrapeICAOffers(offersUrl, storeId, label) {
   try {
-    const response = await axios.get(STORES.ica.offersUrl, {
-      headers: SCRAPE_HEADERS, timeout: 10000
-    });
-    const $ = cheerio.load(response.data);
-    const products = [];
+    return await withPage(async page => {
+      await page.goto(offersUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
 
-    // ICA injects a JSON blob into their pages
-    $('script').each((_, el) => {
-      const src = $(el).html() || '';
-      if (!src.includes('"offers"') && !src.includes('"products"')) return;
-      try {
-        const match = src.match(/\{[\s\S]+\}/);
-        if (!match) return;
-        const data = JSON.parse(match[0]);
-        const offers = data.offers || data.products || [];
-        offers.forEach(o => {
-          const price = parseFloat(o.price || o.currentPrice || 0);
-          if (o.name && price > 0) {
-            products.push({ name: o.name, price, image: o.image || null, inOffer: true });
-          }
-        });
-      } catch (_) {}
-    });
-
-    // HTML fallback
-    if (!products.length) {
-      $('[class*="offer"], [class*="product-card"]').each((_, el) => {
-        const name  = $(el).find('[class*="title"],[class*="name"],h3,h4').first().text().trim();
-        const pText = $(el).find('[class*="price"]').first().text().trim();
-        const price = parseFloat(pText.replace(/[^0-9,]/g, '').replace(',', '.'));
-        const image = $(el).find('img').first().attr('src') || null;
-        if (name && !isNaN(price) && price > 0) products.push({ name, price, image, inOffer: true });
+      const weekly = await page.evaluate(() => {
+        const d = window.__INITIAL_DATA__;
+        return (d && d.offers && Array.isArray(d.offers.weeklyOffers))
+          ? d.offers.weeklyOffers : [];
       });
-    }
 
-    console.log(`ICA: ${products.length} produkter`);
-    return products;
-  } catch (err) {
-    console.log(`ICA: misslyckades – ${err.message}`);
-    return [];
-  }
-}
+      const products = [];
+      for (const item of weekly) {
+        const det = item.details || {};
+        const name = (det.name || '').trim();
+        if (!name) continue;
 
-// Attempt to scrape Willys – they use Next.js, so we look for __NEXT_DATA__
-async function scrapeWillys() {
-  try {
-    const response = await axios.get(STORES.willys.url, {
-      headers: SCRAPE_HEADERS, timeout: 10000
-    });
-    const $ = cheerio.load(response.data);
-    const products = [];
-
-    const nextRaw = $('#__NEXT_DATA__').html();
-    if (nextRaw) {
-      try {
-        const nextData = JSON.parse(nextRaw);
-        const offers =
-          nextData?.props?.pageProps?.offers ||
-          nextData?.props?.pageProps?.products ||
-          nextData?.props?.pageProps?.weeklyOffers || [];
-        offers.forEach(o => {
-          const price = parseFloat(o.price || o.currentPrice || o.priceValue || 0);
-          if ((o.name || o.title) && price > 0) {
-            products.push({
-              name: o.name || o.title,
-              price,
-              image: o.image || o.imageUrl || null,
-              inOffer: true
-            });
+        // Parse price from parsedMechanics
+        const mech = item.parsedMechanics || {};
+        let price = null;
+        const val2 = parseFloat((mech.value2 || '').replace(',', '.'));
+        if (!isNaN(val2) && val2 > 0) {
+          const qty = parseInt(mech.quantity, 10) || 1;
+          // For multi-buy (e.g. "2 för 50 kr"), value2 is total → divide by qty
+          price = (mech.type === 'Multipack' || mech.type === 'Multibuy')
+            ? Math.round((val2 / qty) * 100) / 100
+            : val2;
+        } else {
+          // Fallback: parse mechanicInfo text "25 kr/st" or "2 för 50 kr"
+          const mechInfo = det.mechanicInfo || '';
+          const forM = mechInfo.match(/(\d+)\s+f[öo]r\s+(\d+(?:[.,]\d+)?)/i);
+          if (forM) {
+            price = Math.round((parseFloat(forM[2].replace(',', '.')) / parseInt(forM[1], 10)) * 100) / 100;
+          } else {
+            const m = mechInfo.match(/(\d+(?:[.,]\d+)?)/);
+            price = m ? parseFloat(m[1].replace(',', '.')) : null;
           }
-        });
-      } catch (_) {}
-    }
+        }
+        if (!price || price <= 0 || price > 5000) continue;
 
-    if (!products.length) {
-      $('[class*="offer-card"],[class*="product-card"],[class*="OfferCard"]').each((_, el) => {
-        const name  = $(el).find('[class*="title"],[class*="name"]').first().text().trim();
-        const pText = $(el).find('[class*="price"]').first().text().trim();
-        const price = parseFloat(pText.replace(/[^0-9,]/g, '').replace(',', '.'));
-        const image = $(el).find('img').first().attr('src') || null;
-        if (name && !isNaN(price) && price > 0) products.push({ name, price, image, inOffer: true });
-      });
-    }
+        const subtitle = (det.packageInformation || '').trim();
+        const brand    = (det.brand || '').replace(/\.\s*\w+$/, '').trim(); // strip "ICA. Sydafrika" → "ICA"
+        const pic      = item.picture || {};
+        const image    = pic.baseUrl && pic.fileName
+          ? `${pic.baseUrl}/t_product_medium_v2/${pic.fileName}` : null;
 
-    console.log(`Willys: ${products.length} produkter`);
-    return products;
-  } catch (err) {
-    console.log(`Willys: misslyckades – ${err.message}`);
-    return [];
-  }
-}
-
-async function scrapeMaxiNordby() {
-  try {
-    const response = await axios.get(STORES.maxi.url, {
-      headers: SCRAPE_HEADERS, timeout: 10000
-    });
-    const $ = cheerio.load(response.data);
-    const products = [];
-
-    $('[class*="product"],[class*="offer"],article').each((_, el) => {
-      const name  = $(el).find('h2,h3,h4,[class*="title"],[class*="name"]').first().text().trim();
-      const pText = $(el).find('[class*="price"],.price').first().text().trim();
-      const price = parseFloat(pText.replace(/[^0-9,]/g, '').replace(',', '.'));
-      const image = $(el).find('img').first().attr('src') || null;
-      if (name && name.length > 2 && !isNaN(price) && price > 0) {
-        products.push({ name, price, image, inOffer: true });
+        products.push(parseScrapedProduct(storeId, { name, brand, subtitle, price, ordPrice: null, image }));
       }
-    });
 
-    console.log(`Maxi Nordby: ${products.length} produkter`);
-    return products;
+      console.log(`${label}: ${products.length} produkter (live)`);
+      return products;
+    });
   } catch (err) {
-    console.log(`Maxi Nordby: misslyckades – ${err.message}`);
+    console.log(`${label}: misslyckades – ${err.message}`);
     return [];
   }
 }
 
-async function scrapeEurocash() {
+// ── Willys / Hemköp (Puppeteer — Axfood Next.js) ──────────────────────────────
+// Prices are stored as integers in öre (hundredths of SEK), e.g. 2500 = 25.00 kr
+async function scrapeAxfoodOffers(offersUrl, storeId, label) {
   try {
-    const response = await axios.get(STORES.eurocash.url, {
-      headers: SCRAPE_HEADERS, timeout: 10000
-    });
-    const $ = cheerio.load(response.data);
-    const products = [];
+    return await withPage(async page => {
+      await page.goto(offersUrl, { waitUntil: 'networkidle2', timeout: 35000 });
 
-    $('[class*="product"],[class*="offer"]').each((_, el) => {
-      const name  = $(el).find('h2,h3,[class*="title"]').first().text().trim();
-      const pText = $(el).find('[class*="price"]').first().text().trim();
-      const price = parseFloat(pText.replace(/[^0-9,]/g, '').replace(',', '.'));
-      const image = $(el).find('img').first().attr('src') || null;
-      if (name && !isNaN(price) && price > 0) {
-        products.push({ name, price, image, inOffer: true });
-      }
-    });
+      // Axfood uses [data-testid="product"] (not "product-card")
+      await page.waitForSelector('[data-testid="product"]', { timeout: 15000 }).catch(() => {});
+      await new Promise(r => setTimeout(r, 2000));
 
-    console.log(`Eurocash: ${products.length} produkter`);
-    return products;
-  } catch (err) {
-    console.log(`Eurocash: misslyckades – ${err.message}`);
-    return [];
-  }
-}
+      const raw = await page.evaluate(() => {
+        const cards = Array.from(document.querySelectorAll('[data-testid="product"]'));
+        return cards.map(card => {
+          // Name via itemprop or aria-label
+          const name = card.querySelector('[itemprop="name"]')?.textContent.trim()
+            || (card.querySelector('a[aria-label]')?.getAttribute('aria-label') || '')
+               .replace(/^Visa produktinformation\s*/i, '').trim()
+            || '';
 
-async function scrapeCoopSE() {
-  try {
-    const response = await axios.get('https://www.coop.se/handla/erbjudanden/', {
-      headers: SCRAPE_HEADERS, timeout: 10000
-    });
-    const $ = cheerio.load(response.data);
-    const products = [];
+          // Prices in öre (integer text)
+          const loyaltyEl = card.querySelector('[data-testid="product-price-LOYALTY"]');
+          const generalEl = card.querySelector('[data-testid="product-price-GENERAL"]');
+          const loyaltyText = loyaltyEl?.textContent.trim() || '';
+          const generalText = generalEl?.textContent.trim() || '';
 
-    const nextRaw = $('#__NEXT_DATA__').html();
-    if (nextRaw) {
-      try {
-        const nextData = JSON.parse(nextRaw);
-        const offers =
-          nextData?.props?.pageProps?.offers ||
-          nextData?.props?.pageProps?.products ||
-          nextData?.props?.pageProps?.weeklyOffers || [];
-        offers.forEach(o => {
-          const price = parseFloat(o.price || o.currentPrice || o.priceValue || 0);
-          if ((o.name || o.title) && price > 0) {
-            products.push({ name: o.name || o.title, price, image: o.image || null, inOffer: true });
-          }
+          // Subtitle: text children that don't look like price parts
+          const allTexts = Array.from(card.querySelectorAll('p, span, small'))
+            .map(el => el.textContent.trim())
+            .filter(t => t.length > 2 && t.length < 80
+              && !/^\d{1,3}$/.test(t)         // not just digits (price int/decimal parts)
+              && !/^\/\w+$/.test(t)            // not "/st", "/kg"
+              && !/^(kr|SEK)$/i.test(t));
+          const subtitle = allTexts.find(t => /[a-zA-ZåäöÅÄÖ]/.test(t) && /\d/.test(t)) || '';
+
+          const image = card.querySelector('img')?.getAttribute('src') || null;
+          return { name, loyaltyText, generalText, subtitle, image };
         });
-      } catch (_) {}
-    }
-
-    if (!products.length) {
-      $('[class*="offer-card"],[class*="product-card"],[class*="OfferCard"]').each((_, el) => {
-        const name  = $(el).find('[class*="title"],[class*="name"]').first().text().trim();
-        const pText = $(el).find('[class*="price"]').first().text().trim();
-        const price = parseFloat(pText.replace(/[^0-9,]/g, '').replace(',', '.'));
-        const image = $(el).find('img').first().attr('src') || null;
-        if (name && !isNaN(price) && price > 0) products.push({ name, price, image, inOffer: true });
       });
-    }
 
-    console.log(`Coop: ${products.length} produkter`);
-    return products;
+      const products = [];
+      for (const r of raw) {
+        if (!r.name) continue;
+
+        // Use loyalty price (member offer) if available; else general offer price
+        const priceRaw = (r.loyaltyText || r.generalText).replace(/\/\w+/, '');
+        const priceOre = parseInt(priceRaw.replace(/[^0-9]/g, ''), 10);
+        if (!priceOre || priceOre <= 0) continue;
+        const price = priceOre / 100;
+        if (price > 5000) continue;
+
+        // If both prices present, general is likely the regular/ord price
+        let ordPrice = null;
+        if (r.loyaltyText && r.generalText) {
+          const ordOre = parseInt(r.generalText.replace(/[^0-9]/g, ''), 10);
+          ordPrice = ordOre > 0 ? ordOre / 100 : null;
+        }
+
+        products.push(parseScrapedProduct(storeId, {
+          name: r.name, subtitle: r.subtitle, price, ordPrice, image: r.image
+        }));
+      }
+
+      console.log(`${label}: ${products.length} produkter (live)`);
+      return products;
+    });
   } catch (err) {
-    console.log(`Coop: misslyckades – ${err.message}`);
+    console.log(`${label}: misslyckades – ${err.message}`);
     return [];
   }
+}
+
+// ── Coop (Puppeteer — React SPA) ──────────────────────────────────────────────
+// Coop DKE API key (publicly embedded in coop.se frontend JS)
+const COOP_DKE_KEY = '32895bd5b86e4a5ab6e94fb0bc8ae234';
+
+// ── Coop (direct API — external.api.coop.se/dke/offers) ───────────────────────
+// storeApiId: Coop Strömstad=131800, Coop Avenyn=125600
+async function scrapeCoopOffers(storeApiId, storeId, label) {
+  try {
+    const url = `https://external.api.coop.se/dke/offers/${storeApiId}?api-version=v2`;
+    const res  = await axios.get(url, {
+      headers: {
+        'User-Agent':    SCRAPE_HEADERS['User-Agent'],
+        'Accept':        'application/json',
+        'Accept-Language': 'sv-SE,sv;q=0.9',
+        'Origin':        'https://www.coop.se',
+        'Referer':       'https://www.coop.se/',
+        'ocp-apim-subscription-key': COOP_DKE_KEY
+      },
+      timeout: 12000
+    });
+
+    const items = Array.isArray(res.data) ? res.data : [];
+    const products = [];
+
+    for (const item of items) {
+      const name = (item.content?.title || '').trim();
+      if (!name) continue;
+
+      const pi = item.priceInformation || {};
+      let price = pi.discountValue || 0;
+      if (!price || price <= 0) continue;
+
+      // "2 för X kr" → unit price = X / minimumAmount
+      const minAmt = parseInt(pi.minimumAmount, 10) || 1;
+      if (minAmt > 1 && (pi.dealType === 'pris' || pi.dealType === 'prissätt')) {
+        price = Math.round((price / minAmt) * 100) / 100;
+      }
+
+      const subtitle = (item.content?.amountInformation || '').trim();
+      const brand    = (item.content?.brand || '').trim();
+      const imgRaw   = item.content?.imageUrl || '';
+      const image    = imgRaw ? (imgRaw.startsWith('//') ? 'https:' + imgRaw : imgRaw) : null;
+
+      products.push(parseScrapedProduct(storeId, {
+        name, brand, subtitle, price, ordPrice: null, image
+      }));
+    }
+
+    console.log(`${label}: ${products.length} produkter (live)`);
+    return products;
+  } catch (err) {
+    console.log(`${label}: misslyckades – ${err.message}`);
+    return [];
+  }
+}
+
+// ── Lidl (Puppeteer — React SPA) ─────────────────────────────────────────────
+async function scrapeLidlOffers(storeId, label) {
+  try {
+    return await withPage(async page => {
+      await page.goto('https://www.lidl.se/erbjudanden', { waitUntil: 'networkidle2', timeout: 30000 });
+      await page.waitForSelector(
+        '[class*="product"], article[class*="offer"], [class*="OfferCard"]',
+        { timeout: 15000 }
+      ).catch(() => {});
+
+      const raw = await page.evaluate(() => {
+        const cards = Array.from(document.querySelectorAll(
+          'article[class*="offer"], [class*="OfferCard"], [class*="product-card"], [class*="ProductCard"]'
+        ));
+        return cards.map(card => ({
+          name:      card.querySelector('h2,h3,[class*="title"],[class*="name"]')?.textContent.trim() || '',
+          priceText: card.querySelector('[class*="price"],[class*="Price"]')?.textContent.trim() || '',
+          ordText:   card.querySelector('[class*="compare"],[class*="original"],[class*="ordinary"]')?.textContent.trim() || '',
+          subtitle:  card.querySelector('[class*="weight"],[class*="volume"],[class*="unit"],[class*="desc"]')?.textContent.trim() || '',
+          image:     card.querySelector('img')?.src || null
+        }));
+      });
+
+      const products = [];
+      for (const r of raw) {
+        if (!r.name) continue;
+        const m = r.priceText.match(/(\d+(?:[.,]\d+)?)/);
+        const price = m ? parseFloat(m[1].replace(',','.')) : null;
+        if (!price || price <= 0 || price > 5000) continue;
+        const om = r.ordText.match(/(\d+(?:[.,]\d+)?)/);
+        const ordPrice = om ? parseFloat(om[1].replace(',','.')) : null;
+        products.push(parseScrapedProduct(storeId, {
+          name: r.name, subtitle: r.subtitle, price, ordPrice, image: r.image
+        }));
+      }
+
+      console.log(`${label}: ${products.length} produkter (live)`);
+      return products;
+    });
+  } catch (err) {
+    console.log(`${label}: misslyckades – ${err.message}`);
+    return [];
+  }
+}
+
+// ── Eurocash (Puppeteer — dynamic section) ────────────────────────────────────
+async function scrapeEurocashOffers(storeId, label) {
+  try {
+    return await withPage(async page => {
+      await page.goto(STORES.eurocash.url, { waitUntil: 'networkidle2', timeout: 25000 });
+      // The offers section starts hidden; wait for it or try a brief pause
+      await new Promise(r => setTimeout(r, 3000));
+
+      const raw = await page.evaluate(() => {
+        const items = Array.from(document.querySelectorAll('.offers__offer-item'));
+        return items.map(item => ({
+          name:      item.querySelector('.offers__offer-item-header')?.textContent.trim() || '',
+          priceText: item.querySelector('.offers__offer-item-price, [class*="price"]')?.textContent.trim() || '',
+          subtitle:  item.querySelector('.offers__offer-item-text')?.textContent.trim() || '',
+          image:     item.querySelector('img')?.src || null
+        }));
+      });
+
+      const products = [];
+      for (const r of raw) {
+        if (!r.name) continue;
+        const m = r.priceText.match(/(\d+(?:[.,]\d+)?)/);
+        const price = m ? parseFloat(m[1].replace(',','.')) : null;
+        if (!price || price <= 0 || price > 5000) continue;
+        products.push(parseScrapedProduct(storeId, {
+          name: r.name, subtitle: r.subtitle, price, ordPrice: null, image: r.image
+        }));
+      }
+
+      console.log(`${label}: ${products.length} produkter (live)`);
+      return products;
+    });
+  } catch (err) {
+    console.log(`${label}: misslyckades – ${err.message}`);
+    return [];
+  }
+}
+
+// ── Maxi Nordby (Puppeteer — Norwegian store) ─────────────────────────────────
+async function scrapeMaxiNordbyOffers(storeId, label) {
+  try {
+    return await withPage(async page => {
+      await page.goto('https://www.maximatnordby.se/', { waitUntil: 'networkidle2', timeout: 25000 });
+      await new Promise(r => setTimeout(r, 2000));
+
+      const raw = await page.evaluate(() => {
+        const cards = Array.from(document.querySelectorAll(
+          '[class*="product"], [class*="offer"], article'
+        )).filter(el => el.querySelector('[class*="price"], .price'));
+
+        return cards.map(card => ({
+          name:      card.querySelector('h2,h3,h4,[class*="title"],[class*="name"]')?.textContent.trim() || '',
+          priceText: card.querySelector('[class*="price"],.price')?.textContent.trim() || '',
+          subtitle:  card.querySelector('[class*="desc"],[class*="sub"],[class*="unit"]')?.textContent.trim() || '',
+          image:     card.querySelector('img')?.src || null
+        }));
+      });
+
+      const products = [];
+      for (const r of raw) {
+        if (!r.name || r.name.length < 3) continue;
+        const m = r.priceText.match(/(\d+(?:[.,]\d+)?)/);
+        const price = m ? parseFloat(m[1].replace(',','.')) : null;
+        if (!price || price <= 0 || price > 5000) continue;
+        products.push(parseScrapedProduct(storeId, {
+          name: r.name, subtitle: r.subtitle, price, ordPrice: null, image: r.image
+        }));
+      }
+
+      console.log(`${label}: ${products.length} produkter (live)`);
+      return products;
+    });
+  } catch (err) {
+    console.log(`${label}: misslyckades – ${err.message}`);
+    return [];
+  }
+}
+
+// ─── Demo fallback per store ───────────────────────────────────────────────────
+// When a store's scraper returns 0 results, use demo prices for that store only.
+
+function demoForStore(storeId) {
+  return DEMO_PRODUCTS
+    .filter(p => p.prices[storeId])
+    .map(p => ({
+      ...p,
+      prices: { [storeId]: { ...p.prices[storeId], inOffer: false } }
+    }));
+}
+
+// Same for Göteborg demo products — returns only the specified store's price
+function demoGbgForStore(storeId) {
+  return generateGoteborgProducts()
+    .filter(p => p.prices[storeId])
+    .map(p => ({
+      ...p,
+      id: storeId + '-' + p.id,   // make ID unique per store
+      prices: { [storeId]: { price: p.prices[storeId].price, inOffer: false } }
+    }));
 }
 
 // ─── Cache & data orchestration ───────────────────────────────────────────────
@@ -501,33 +788,71 @@ async function scrapeCoopSE() {
 const CACHE_TTL = 3 * 60 * 60 * 1000; // 3 hours
 
 let cache = {
-  stromstad: null,
-  goteborg:  null,
+  stromstad:   null,
+  goteborg:    null,
   lastUpdated: null,
-  isLive: false
+  isLive:      false
 };
 
 async function fetchAllProducts() {
   console.log('\n── Hämtar produktdata ──────────────────────────────');
-  const [icaRes, maxiRes, willysRes, eurocashRes, coopRes] = await Promise.allSettled([
-    scrapeICA(), scrapeMaxiNordby(), scrapeWillys(), scrapeEurocash(), scrapeCoopSE()
+
+  // Strömstad & Göteborg ICA use axios (fast, no Puppeteer needed)
+  // All other stores use Puppeteer
+  const [
+    icaStromRes, icaGbgRes,
+    willysRes, willysGbgRes,
+    coopRes, coopGbgRes,
+    hemkopRes, lidlRes,
+    eurocashRes, maxiRes
+  ] = await Promise.allSettled([
+    scrapeICAOffers(STORES.ica.offersUrl, 'ica', 'ICA Strömstad'),
+    scrapeICAOffers(
+      'https://www.ica.se/butiker/supermarket/goteborg/ica-supermarket-nordstan-1177009/erbjudanden/',
+      'ica-gbg', 'ICA Nordstan'
+    ),
+    scrapeAxfoodOffers('https://www.willys.se/erbjudanden/ehandel',                 'willys',     'Willys'),
+    scrapeAxfoodOffers('https://www.willys.se/erbjudanden/ehandel',                 'willys-gbg', 'Willys Gbg'),
+    scrapeCoopOffers(131800,                                                         'coop',       'Coop Strömstad'),
+    scrapeCoopOffers(125600,                                                         'coop-gbg',   'Coop Avenyn'),
+    scrapeAxfoodOffers('https://www.hemkop.se/erbjudanden',                         'hemkop',     'Hemköp'),
+    scrapeLidlOffers(  'lidl',    'Lidl'),
+    scrapeEurocashOffers('eurocash', 'Eurocash'),
+    scrapeMaxiNordbyOffers('maxi', 'Maxi Nordby'),
   ]);
 
-  const isLive =
-    (icaRes.value?.length      > 3) ||
-    (maxiRes.value?.length     > 3) ||
-    (willysRes.value?.length   > 3) ||
-    (eurocashRes.value?.length > 3) ||
-    (coopRes.value?.length     > 3);
+  const get = r => r.value || [];
 
-  // TODO: When live data is available, merge it with DEMO_PRODUCTS using
-  // fuzzy name matching to add real prices alongside demo prices.
-  cache.stromstad  = enrichProducts(DEMO_PRODUCTS);
-  cache.goteborg   = enrichProducts(generateGoteborgProducts());
+  // Build per-store arrays; fall back to demo if live scrape empty
+  const storesStromstad = {
+    ica:      get(icaStromRes).length  ? get(icaStromRes)  : demoForStore('ica'),
+    willys:   get(willysRes).length    ? get(willysRes)    : demoForStore('willys'),
+    coop:     get(coopRes).length      ? get(coopRes)      : demoForStore('coop'),
+    eurocash: get(eurocashRes).length  ? get(eurocashRes)  : demoForStore('eurocash'),
+    maxi:     get(maxiRes).length      ? get(maxiRes)      : demoForStore('maxi'),
+  };
+
+  const storesGoteborg = {
+    'ica-gbg':    get(icaGbgRes).length    ? get(icaGbgRes)    : demoGbgForStore('ica-gbg'),
+    'willys-gbg': get(willysGbgRes).length ? get(willysGbgRes) : demoGbgForStore('willys-gbg'),
+    'coop-gbg':   get(coopGbgRes).length   ? get(coopGbgRes)   : demoGbgForStore('coop-gbg'),
+    'hemkop':     get(hemkopRes).length    ? get(hemkopRes)    : demoGbgForStore('hemkop'),
+    'lidl':       get(lidlRes).length      ? get(lidlRes)      : demoGbgForStore('lidl'),
+  };
+
+  const allStromstad = Object.values(storesStromstad).flat();
+  const allGoteborg  = Object.values(storesGoteborg).flat();
+
+  const liveStores = [icaStromRes, willysRes, coopRes, eurocashRes, maxiRes,
+                      icaGbgRes, willysGbgRes, coopGbgRes, hemkopRes, lidlRes]
+    .filter(r => (r.value?.length || 0) > 0).length;
+
+  cache.stromstad  = enrichProducts(allStromstad);
+  cache.goteborg   = enrichProducts(allGoteborg);
   cache.lastUpdated = new Date();
-  cache.isLive      = isLive;
+  cache.isLive      = liveStores > 0;
 
-  console.log(`── Strömstad: ${cache.stromstad.length} produkter, Göteborg: ${cache.goteborg.length} produkter (${isLive ? 'live' : 'demo'})\n`);
+  console.log(`── Strömstad: ${cache.stromstad.length} produkter, Göteborg: ${cache.goteborg.length} produkter (${cache.isLive ? `${liveStores} live butiker` : 'demo'})\n`);
 }
 
 // ─── API Routes ───────────────────────────────────────────────────────────────

@@ -579,6 +579,15 @@ body {
   margin-top: .1rem;
 }
 
+.price-row-ord {
+  font-size: .68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: line-through;
+  margin-top: .1rem;
+  display: inline-block;
+}
+
 .modal-store-link {
   display: block;
   margin-top: 1.4rem;
