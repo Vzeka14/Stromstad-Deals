@@ -800,6 +800,28 @@ function demoGbgForStore(storeId) {
     }));
 }
 
+// ─── Merge products by name ────────────────────────────────────────────────────
+// Products scraped per-store each have one price entry. This merges products
+// with the same name (case-insensitive) into a single object with prices from
+// all stores, enabling cross-store comparison in the modal.
+
+function mergeProductsByName(products) {
+  const map = new Map();
+  for (const p of products) {
+    const key = p.name.toLowerCase().trim();
+    if (!map.has(key)) {
+      map.set(key, { ...p, prices: { ...p.prices } });
+    } else {
+      const existing = map.get(key);
+      Object.assign(existing.prices, p.prices);
+      if (!existing.image    && p.image)    existing.image    = p.image;
+      if (!existing.brand    && p.brand)    existing.brand    = p.brand;
+      if (!existing.subtitle && p.subtitle) existing.subtitle = p.subtitle;
+    }
+  }
+  return Array.from(map.values());
+}
+
 // ─── Cache & data orchestration ───────────────────────────────────────────────
 
 const CACHE_TTL = 3 * 60 * 60 * 1000; // 3 hours
@@ -864,8 +886,8 @@ async function fetchAllProducts() {
                       icaGbgRes, willysGbgRes, coopGbgRes, hemkopRes, lidlRes]
     .filter(r => (r.value?.length || 0) > 0).length;
 
-  cache.stromstad  = enrichProducts(allStromstad);
-  cache.goteborg   = enrichProducts(allGoteborg);
+  cache.stromstad  = enrichProducts(mergeProductsByName(allStromstad));
+  cache.goteborg   = enrichProducts(mergeProductsByName(allGoteborg));
   cache.lastUpdated = new Date();
   cache.isLive      = liveStores > 0;
 
