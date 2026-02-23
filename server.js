@@ -462,6 +462,22 @@ async function scrapeICAOffers(offersUrl, storeId, label) {
           ? d.offers.weeklyOffers : [];
       });
 
+      // Extract ordPrice from rendered .offer-card elements (ICA SSR includes cards)
+      const cardOrdPrices = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('.offer-card')).map(card => {
+          const title = (card.querySelector('.offer-card__title')?.textContent || '').trim();
+          const fullText = card.textContent || '';
+          const m = fullText.match(/Ord[.\s]?pris\s+(\d+)[:.]\s*(\d+)/i);
+          return { title, ordPrice: m ? parseFloat(m[1] + '.' + m[2]) : null };
+        });
+      });
+
+      // Build lookup: lowercased name → ordPrice
+      const ordPriceMap = {};
+      cardOrdPrices.forEach(({ title, ordPrice }) => {
+        if (title && ordPrice) ordPriceMap[title.toLowerCase()] = ordPrice;
+      });
+
       const products = [];
       for (const item of weekly) {
         const det = item.details || {};
@@ -492,12 +508,13 @@ async function scrapeICAOffers(offersUrl, storeId, label) {
         if (!price || price <= 0 || price > 5000) continue;
 
         const subtitle = (det.packageInformation || '').trim();
-        const brand    = (det.brand || '').replace(/\.\s*\w+$/, '').trim(); // strip "ICA. Sydafrika" → "ICA"
+        const brand    = (det.brand || '').replace(/\.\s*\w+$/, '').trim();
         const pic      = item.picture || {};
         const image    = pic.baseUrl && pic.fileName
           ? `${pic.baseUrl}/t_product_medium_v2/${pic.fileName}` : null;
+        const ordPrice = ordPriceMap[name.toLowerCase()] || null;
 
-        products.push(parseScrapedProduct(storeId, { name, brand, subtitle, price, ordPrice: null, image }));
+        products.push(parseScrapedProduct(storeId, { name, brand, subtitle, price, ordPrice, image }));
       }
 
       console.log(`${label}: ${products.length} produkter (live)`);

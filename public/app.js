@@ -536,23 +536,36 @@ function cardHTML(p) {
   const em           = emoji(p);
   const sc           = storeColor(p.bestStore);
   const sn           = storeShort(p.bestStore);
+  const storeEntry   = p.prices[p.bestStore] || {};
+  const inOffer      = storeEntry.inOffer;
+  const ordPrice     = storeEntry.ordPrice;
   const savingsHTML  = p.savings > 0
     ? `<span class="card-savings">${t('save')} ${formatPrice(p.savings)}</span>` : '';
+  const offerBadge   = inOffer
+    ? `<span class="card-offer-badge">${t('offer')}</span>` : '';
+  const ordHTML      = ordPrice
+    ? `<span class="card-ord-price">${t('ord_price')} ${formatPrice(ordPrice)}</span>` : '';
 
   return `
   <article class="card" data-id="${p.id}" tabindex="0" role="button" aria-label="${p.name}">
     <div class="card-img-placeholder" style="background:${bg}; color:${accent}">${em}</div>
     <div class="card-body">
-      <span class="card-store-badge"
-            style="background:${sc}1a; color:${sc}; border:1.5px solid ${sc}33">
-        <svg width="7" height="7" viewBox="0 0 7 7" fill="${sc}"><circle cx="3.5" cy="3.5" r="3.5"/></svg>
-        ${sn}
-      </span>
+      <div class="card-top-row">
+        <span class="card-store-badge"
+              style="background:${sc}1a; color:${sc}; border:1.5px solid ${sc}33">
+          <svg width="7" height="7" viewBox="0 0 7 7" fill="${sc}"><circle cx="3.5" cy="3.5" r="3.5"/></svg>
+          ${sn}
+        </span>
+        ${offerBadge}
+      </div>
       ${p.brand ? `<p class="card-brand">${p.brand}</p>` : ''}
       <p class="card-name">${p.name}</p>
       <p class="card-subtitle">${p.subtitle || ''}</p>
       <div class="card-price-row">
-        <span class="card-price">${formatPrice(p.bestPrice)}<span> / ${p.unit}</span></span>
+        <div class="card-price-block">
+          ${ordHTML}
+          <span class="card-price">${formatPrice(p.bestPrice)}<span> / ${p.unit}</span></span>
+        </div>
         ${savingsHTML}
       </div>
       <button class="card-compare-btn">${t('compare_btn')}</button>
